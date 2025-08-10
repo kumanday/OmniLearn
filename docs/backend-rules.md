@@ -1,0 +1,7 @@
+Use Python 3.13 and uv for package management.
+- Adding python dependencies: `uv add <library>`
+- You can run generic Python commands using `uv run <command>`
+- Use type hints consistently
+- Optimize for readability over premature optimization
+- Write modular code, using separate files for models, data loading, training, and evaluation
+- Follow PEP8 style guide for Python code
