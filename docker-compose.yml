@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "12000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api/v1
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - omnilearn-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "12001:8000"
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=omnilearn
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENABLE_MULTIMEDIA=false
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+    networks:
+      - omnilearn-network
+
+  db:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=omnilearn
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - omnilearn-network
+
+networks:
+  omnilearn-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
