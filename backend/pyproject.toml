@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "omnilearn-backend"
+version = "0.1.0"
+description = "OmniLearn Backend API"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "OmniLearn Team", email = "info@omnilearn.com"},
+]
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "sqlalchemy>=2.0.27",
+    "alembic>=1.13.1",
+    "psycopg2-binary>=2.9.9",
+    "pydantic>=2.6.1",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "openai>=1.12.0",
+    "google-generativeai>=0.3.0",
+    "httpx>=0.26.0",
+    "python-jose>=3.3.0",
+    "passlib>=1.7.4",
+    "python-multipart>=0.0.9",
+    "email-validator>=2.1.0",
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.1"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.isort]
+profile = "black"
+line_length = 88

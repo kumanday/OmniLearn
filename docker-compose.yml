@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "12000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:12001/api/v1
+    depends_on:
+      - backend
+    # No bind mounts in production to preserve Next.js build output
+    networks:
+      - omnilearn-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "12001:8000"
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=omnilearn
+      - AI_PROVIDER=${AI_PROVIDER:-openrouter}
+      - AI_MODEL=${AI_MODEL:-qwen/qwen-2.5-72b-instruct}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ENABLE_MULTIMEDIA=false
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - omnilearn-network
+
+  db:
+    image: postgres:15
+    ports:
+      - "15432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=omnilearn
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - omnilearn-network
+
+networks:
+  omnilearn-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
