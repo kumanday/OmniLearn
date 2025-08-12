@@ -11,44 +11,57 @@ from app.core.config import settings
 class AIService:
     def __init__(self):
         self.enable_multimedia = settings.ENABLE_MULTIMEDIA
-        self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        if not settings.OPENROUTER_API_KEY:
+            raise ValueError("OPENROUTER_API_KEY environment variable is required but not set")
+        self.openai_client = OpenAI(
+            api_key=settings.OPENROUTER_API_KEY,
+            base_url="https://openrouter.ai/api/v1"
+        )
 
     async def generate_knowledge_tree(self, topic: str) -> Dict[str, Any]:
         """Generate a knowledge tree for a given topic."""
-        prompt = f"""
-        Generate a detailed knowledge tree for the topic: {topic}.
-        
-        The knowledge tree should have 3-5 main sections, each with 2-4 subsections.
-        
-        For each section and subsection, provide a title and a brief description.
-        
-        Format the response as a JSON object with the following structure:
-        {{
-            "sections": [
-                {{
-                    "title": "Section Title",
-                    "description": "Section description",
-                    "subsections": [
-                        {{
-                            "title": "Subsection Title",
-                            "description": "Subsection description"
-                        }}
-                    ]
-                }}
-            ]
-        }}
-        """
-        
-        response = self.openai_client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an educational content creator."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        
-        return json.loads(response.choices[0].message.content)
+        try:
+            prompt = f"""
+            Generate a detailed knowledge tree for the topic: {topic}.
+            
+            The knowledge tree should have 3-5 main sections, each with 2-4 subsections.
+            
+            For each section and subsection, provide a title and a brief description.
+            
+            Format the response as a JSON object with the following structure:
+            {{
+                "sections": [
+                    {{
+                        "title": "Section Title",
+                        "description": "Section description",
+                        "subsections": [
+                            {{
+                                "title": "Subsection Title",
+                                "description": "Subsection description"
+                            }}
+                        ]
+                    }}
+                ]
+            }}
+            """
+            
+            response = self.openai_client.chat.completions.create(
+                model="qwen/qwen-2.5-72b-instruct",
+                messages=[
+                    {"role": "system", "content": "You are an educational content creator. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("OpenAI API returned empty content")
+                
+            return json.loads(content)
+            
+        except Exception as e:
+            print(f"Error generating knowledge tree: {str(e)}")
+            raise ValueError(f"Failed to generate knowledge tree: {str(e)}")
 
     async def generate_lesson_content(self, subsection_title: str, subsection_description: str) -> str:
         """Generate lesson content for a subsection."""
@@ -64,7 +77,7 @@ class AIService:
         """
         
         response = self.openai_client.chat.completions.create(
-            model="gpt-4",
+            model="qwen/qwen-2.5-72b-instruct",
             messages=[
                 {"role": "system", "content": "You are an educational content creator."},
                 {"role": "user", "content": prompt}
@@ -90,7 +103,7 @@ class AIService:
         """
         
         response = self.openai_client.chat.completions.create(
-            model="gpt-4",
+            model="qwen/qwen-2.5-72b-instruct",
             messages=[
                 {"role": "system", "content": "You are an educational content creator."},
                 {"role": "user", "content": prompt}
@@ -138,7 +151,7 @@ class AIService:
         """
         
         response = self.openai_client.chat.completions.create(
-            model="gpt-4",
+            model="qwen/qwen-2.5-72b-instruct",
             messages=[
                 {"role": "system", "content": "You are an educational content creator."},
                 {"role": "user", "content": prompt}
@@ -172,7 +185,7 @@ class AIService:
         """
         
         response = self.openai_client.chat.completions.create(
-            model="gpt-4",
+            model="qwen/qwen-2.5-72b-instruct",
             messages=[
                 {"role": "system", "content": "You are an educational content evaluator."},
                 {"role": "user", "content": prompt}

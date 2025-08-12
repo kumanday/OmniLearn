@@ -28,7 +28,8 @@ class Settings(BaseSettings):
         )
 
     # AI Provider Settings
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")  # Keep for backward compatibility
     ENABLE_MULTIMEDIA: bool = os.getenv("ENABLE_MULTIMEDIA", "false").lower() == "true"
     
     # CORS Settings
