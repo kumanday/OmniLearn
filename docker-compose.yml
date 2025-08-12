@@ -8,12 +8,10 @@ services:
     ports:
       - "12000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000/api/v1
+      - NEXT_PUBLIC_API_URL=http://localhost:12001/api/v1
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    # No bind mounts in production to preserve Next.js build output
     networks:
       - omnilearn-network
 
@@ -31,7 +29,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ENABLE_MULTIMEDIA=false
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     networks:
@@ -40,13 +39,18 @@ services:
   db:
     image: postgres:15
     ports:
-      - "5432:5432"
+      - "15432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=omnilearn
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - omnilearn-network
 
