@@ -41,9 +41,22 @@ async def get_lesson_by_subsection(
     service: LessonService = Depends(),
 ) -> Any:
     """
-    Get a lesson by subsection ID.
+    Get a lesson by subsection ID. Auto-generates if it doesn't exist.
     """
     lesson = await service.get_lesson_by_subsection(subsection_id)
     if not lesson:
-        raise HTTPException(status_code=404, detail="Lesson not found")
+        # Auto-generate lesson if it doesn't exist
+        try:
+            from app.models.knowledge_tree import Subsection
+            from app.db.session import get_db
+            
+            db = next(get_db())
+            subsection = db.query(Subsection).filter(Subsection.id == subsection_id).first()
+            if not subsection:
+                raise HTTPException(status_code=404, detail="Subsection not found")
+            
+            lesson = await service.generate_lesson(subsection_id, subsection.title)
+            return lesson
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate lesson: {str(e)}")
     return lesson

@@ -26,8 +26,8 @@ export const createLesson = async (subsectionId: number, subsectionTitle: string
   return response.data;
 };
 
-export const getLesson = async (lessonId: number) => {
-  const response = await api.get(`/lessons/${lessonId}`);
+export const getLesson = async (subsectionId: number) => {
+  const response = await api.get(`/lessons/subsection/${subsectionId}`);
   return response.data;
 };
 

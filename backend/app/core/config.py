@@ -28,8 +28,18 @@ class Settings(BaseSettings):
         )
 
     # AI Provider Settings
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "openrouter")  # openai, openrouter, gemini
+    AI_MODEL: str = os.getenv("AI_MODEL", "qwen/qwen-2.5-72b-instruct")
+    
+    # API Keys for different providers
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")  # Keep for backward compatibility
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    
+    # Provider-specific settings
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    
     ENABLE_MULTIMEDIA: bool = os.getenv("ENABLE_MULTIMEDIA", "false").lower() == "true"
     
     # CORS Settings

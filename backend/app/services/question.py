@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from app.db.session import get_db
 from app.models.question import Question
 from app.models.knowledge_tree import Section
-from app.schemas.question import QuestionResponse, AnswerFeedback
+from app.schemas.question import QuestionResponse, AnswerFeedback, HATEOASLink
 from app.services.ai import AIService
 
 
@@ -17,6 +17,27 @@ class QuestionService:
     ):
         self.db = db
         self.ai_service = ai_service
+
+    def _add_hateoas_links(self, question: QuestionResponse) -> QuestionResponse:
+        """Add HATEOAS links to question response."""
+        question.links = [
+            HATEOASLink(
+                href=f"/api/v1/questions/{question.id}",
+                rel="self",
+                method="GET"
+            ),
+            HATEOASLink(
+                href=f"/api/v1/questions/{question.id}/answer",
+                rel="submit-answer",
+                method="POST"
+            ),
+            HATEOASLink(
+                href=f"/api/v1/questions/section/{question.section_id}",
+                rel="section-questions",
+                method="GET"
+            )
+        ]
+        return question
 
     async def generate_questions(
         self, section_id: int, section_title: str, difficulty: str = "medium"
@@ -44,15 +65,14 @@ class QuestionService:
             self.db.add(db_question)
             self.db.flush()
             
-            question_responses.append(
-                QuestionResponse(
-                    id=db_question.id,
-                    section_id=db_question.section_id,
-                    text=db_question.text,
-                    difficulty=db_question.difficulty,
-                    correct_answer=db_question.correct_answer,
-                )
+            response = QuestionResponse(
+                id=db_question.id,
+                section_id=db_question.section_id,
+                text=db_question.text,
+                difficulty=db_question.difficulty,
+                correct_answer=db_question.correct_answer,
             )
+            question_responses.append(self._add_hateoas_links(response))
         
         self.db.commit()
         
@@ -68,16 +88,18 @@ class QuestionService:
         
         db_questions = query.all()
         
-        return [
-            QuestionResponse(
+        question_responses = []
+        for db_question in db_questions:
+            response = QuestionResponse(
                 id=db_question.id,
                 section_id=db_question.section_id,
                 text=db_question.text,
                 difficulty=db_question.difficulty,
                 correct_answer=db_question.correct_answer,
             )
-            for db_question in db_questions
-        ]
+            question_responses.append(self._add_hateoas_links(response))
+        
+        return question_responses
 
     async def evaluate_answer(self, question_id: int, answer: str) -> AnswerFeedback:
         """Evaluate a student's answer to a question."""

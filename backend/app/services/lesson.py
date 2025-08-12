@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from app.db.session import get_db
 from app.models.lesson import Lesson
 from app.models.knowledge_tree import Subsection
-from app.schemas.lesson import LessonResponse
+from app.schemas.lesson import LessonResponse, HATEOASLink
 from app.services.ai import AIService
 
 
@@ -17,6 +17,27 @@ class LessonService:
     ):
         self.db = db
         self.ai_service = ai_service
+
+    def _add_hateoas_links(self, lesson: LessonResponse, subsection: Subsection) -> LessonResponse:
+        """Add HATEOAS links to lesson response."""
+        lesson.links = [
+            HATEOASLink(
+                href=f"/api/v1/lessons/{lesson.id}",
+                rel="self",
+                method="GET"
+            ),
+            HATEOASLink(
+                href=f"/api/v1/questions/section/{subsection.section_id}",
+                rel="practice-questions",
+                method="GET"
+            ),
+            HATEOASLink(
+                href="/api/v1/questions/",
+                rel="create-questions",
+                method="POST"
+            )
+        ]
+        return lesson
 
     async def generate_lesson(self, subsection_id: int, subsection_title: str) -> LessonResponse:
         """Generate lesson content for a subsection."""
@@ -53,12 +74,16 @@ class LessonService:
         self.db.commit()
         self.db.refresh(db_lesson)
         
-        return LessonResponse(
+        response = LessonResponse(
             id=db_lesson.id,
             subsection_id=db_lesson.subsection_id,
+            section_id=db_subsection.section_id,
+            section_title=db_subsection.section.title,
             content=db_lesson.content,
             multimedia_urls=db_lesson.multimedia_urls,
         )
+        
+        return self._add_hateoas_links(response, db_subsection)
 
     async def get_lesson(self, lesson_id: int) -> Optional[LessonResponse]:
         """Get a lesson by ID."""
@@ -66,12 +91,19 @@ class LessonService:
         if not db_lesson:
             return None
         
-        return LessonResponse(
+        # Get subsection for HATEOAS links
+        db_subsection = self.db.query(Subsection).filter(Subsection.id == db_lesson.subsection_id).first()
+        
+        response = LessonResponse(
             id=db_lesson.id,
             subsection_id=db_lesson.subsection_id,
+            section_id=db_subsection.section_id,
+            section_title=db_subsection.section.title,
             content=db_lesson.content,
             multimedia_urls=db_lesson.multimedia_urls,
         )
+        
+        return self._add_hateoas_links(response, db_subsection)
 
     async def get_lesson_by_subsection(self, subsection_id: int) -> Optional[LessonResponse]:
         """Get a lesson by subsection ID."""
@@ -79,9 +111,16 @@ class LessonService:
         if not db_lesson:
             return None
         
-        return LessonResponse(
+        # Get subsection for HATEOAS links
+        db_subsection = self.db.query(Subsection).filter(Subsection.id == db_lesson.subsection_id).first()
+        
+        response = LessonResponse(
             id=db_lesson.id,
             subsection_id=db_lesson.subsection_id,
+            section_id=db_subsection.section_id,
+            section_title=db_subsection.section.title,
             content=db_lesson.content,
             multimedia_urls=db_lesson.multimedia_urls,
         )
+        
+        return self._add_hateoas_links(response, db_subsection)

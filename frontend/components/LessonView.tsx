@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getLesson } from "../lib/api";
+import ReactMarkdown from "react-markdown";
+import { getLessonBySubsection } from "../app/lib/api";
 
 interface LessonViewProps {
   subsectionId: number;
@@ -10,7 +11,7 @@ interface LessonViewProps {
 export default function LessonView({ subsectionId }: LessonViewProps) {
   const { data: lesson, isLoading, error } = useQuery({
     queryKey: ["lesson", subsectionId],
-    queryFn: () => getLesson(subsectionId),
+    queryFn: () => getLessonBySubsection(subsectionId),
     enabled: !!subsectionId,
   });
 
@@ -36,7 +37,7 @@ export default function LessonView({ subsectionId }: LessonViewProps) {
 
   return (
     <div className="prose max-w-none">
-      <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
+      <ReactMarkdown>{lesson.content}</ReactMarkdown>
       
       {lesson.multimedia && lesson.multimedia.length > 0 && (
         <div className="mt-8">

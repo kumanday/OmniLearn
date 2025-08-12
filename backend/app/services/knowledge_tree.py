@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 
 from app.db.session import get_db
 from app.models.knowledge_tree import KnowledgeTree, Section, Subsection
-from app.schemas.knowledge_tree import KnowledgeTreeResponse, SectionResponse, SubsectionResponse
+from app.schemas.knowledge_tree import KnowledgeTreeResponse, SectionResponse, SubsectionResponse, HATEOASLink
 from app.services.ai import AIService
 
 
@@ -47,14 +47,43 @@ class KnowledgeTreeService:
                 self.db.add(db_subsection)
                 self.db.flush()
                 
+                # Add HATEOAS links for lesson access
+                lesson_links = [
+                    HATEOASLink(
+                        href=f"/api/v1/lessons/subsection/{db_subsection.id}",
+                        rel="lesson",
+                        method="GET"
+                    ),
+                    HATEOASLink(
+                        href="/api/v1/lessons/",
+                        rel="create-lesson",
+                        method="POST"
+                    )
+                ]
+                
                 subsections.append(
                     SubsectionResponse(
                         id=db_subsection.id,
                         section_id=db_section.id,
                         title=db_subsection.title,
                         description=db_subsection.description,
+                        links=lesson_links
                     )
                 )
+            
+            # Add HATEOAS links for section
+            section_links = [
+                HATEOASLink(
+                    href=f"/api/v1/questions/section/{db_section.id}",
+                    rel="practice-questions",
+                    method="GET"
+                ),
+                HATEOASLink(
+                    href="/api/v1/questions/",
+                    rel="create-questions",
+                    method="POST"
+                )
+            ]
             
             sections.append(
                 SectionResponse(
@@ -63,15 +92,26 @@ class KnowledgeTreeService:
                     title=db_section.title,
                     description=db_section.description,
                     subsections=subsections,
+                    links=section_links
                 )
             )
         
         self.db.commit()
         
+        # Add HATEOAS links to knowledge tree
+        tree_links = [
+            HATEOASLink(
+                href=f"/api/v1/knowledge-tree/{db_tree.id}",
+                rel="self",
+                method="GET"
+            )
+        ]
+        
         return KnowledgeTreeResponse(
             id=db_tree.id,
             topic=db_tree.topic,
             sections=sections,
+            links=tree_links
         )
 
     async def get_knowledge_tree(self, tree_id: int) -> Optional[KnowledgeTreeResponse]:

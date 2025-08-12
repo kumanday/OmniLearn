@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
 import { createQuestions, getQuestionsBySection } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -85,7 +86,9 @@ export default function LessonView({ subsectionId, lesson, isLoading }: LessonVi
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: lesson.content }} />
+        <div className="prose max-w-none">
+          <ReactMarkdown>{lesson.content}</ReactMarkdown>
+        </div>
         
         {lesson.multimedia_urls && lesson.multimedia_urls.length > 0 && (
           <div className="mt-6 space-y-4">

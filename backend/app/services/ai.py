@@ -1,61 +1,166 @@
-from fastapi import Depends
-from typing import List, Dict, Any, Optional
 import json
-import os
-import httpx
+from typing import List, Dict, Any
+from abc import ABC, abstractmethod
+
 from openai import OpenAI
+import google.generativeai as genai
 
 from app.core.config import settings
 
 
-class AIService:
-    def __init__(self):
-        self.enable_multimedia = settings.ENABLE_MULTIMEDIA
-        if not settings.OPENROUTER_API_KEY:
-            raise ValueError("OPENROUTER_API_KEY environment variable is required but not set")
-        self.openai_client = OpenAI(
-            api_key=settings.OPENROUTER_API_KEY,
+class AIProvider(ABC):
+    """Abstract base class for AI providers."""
+    
+    @abstractmethod
+    async def generate_completion(self, messages: List[Dict[str, str]], use_json: bool = False) -> str:
+        """Generate a completion from the AI provider."""
+        pass
+
+
+class OpenAIProvider(AIProvider):
+    """OpenAI API provider."""
+    
+    def __init__(self, api_key: str, base_url: str, model: str):
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model = model
+    
+    async def generate_completion(self, messages: List[Dict[str, str]], use_json: bool = False) -> str:
+        kwargs = {
+            "model": self.model,
+            "messages": messages
+        }
+        
+        if use_json:
+            kwargs["response_format"] = {"type": "json_object"}
+        
+        response = self.client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content
+
+
+class OpenRouterProvider(AIProvider):
+    """OpenRouter API provider (uses OpenAI client with different base URL)."""
+    
+    def __init__(self, api_key: str, model: str):
+        self.client = OpenAI(
+            api_key=api_key,
             base_url="https://openrouter.ai/api/v1"
         )
+        self.model = model
+    
+    async def generate_completion(self, messages: List[Dict[str, str]], use_json: bool = False) -> str:
+        kwargs = {
+            "model": self.model,
+            "messages": messages
+        }
+        
+        if use_json:
+            kwargs["response_format"] = {"type": "json_object"}
+        
+        response = self.client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content
 
-    async def generate_knowledge_tree(self, topic: str) -> Dict[str, Any]:
-        """Generate a knowledge tree for a given topic."""
-        try:
-            prompt = f"""
-            Generate a detailed knowledge tree for the topic: {topic}.
-            
-            The knowledge tree should have 3-5 main sections, each with 2-4 subsections.
-            
-            For each section and subsection, provide a title and a brief description.
-            
-            Format the response as a JSON object with the following structure:
-            {{
-                "sections": [
-                    {{
-                        "title": "Section Title",
-                        "description": "Section description",
-                        "subsections": [
-                            {{
-                                "title": "Subsection Title",
-                                "description": "Subsection description"
-                            }}
-                        ]
-                    }}
-                ]
-            }}
-            """
-            
-            response = self.openai_client.chat.completions.create(
-                model="qwen/qwen-2.5-72b-instruct",
-                messages=[
-                    {"role": "system", "content": "You are an educational content creator. Always respond with valid JSON."},
-                    {"role": "user", "content": prompt}
-                ]
+
+class GeminiProvider(AIProvider):
+    """Google Gemini API provider."""
+    
+    def __init__(self, api_key: str, model: str = "gemini-pro"):
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel(model)
+    
+    async def generate_completion(self, messages: List[Dict[str, str]], use_json: bool = False) -> str:
+        # Convert OpenAI-style messages to Gemini format
+        prompt = ""
+        for message in messages:
+            if message["role"] == "system":
+                prompt += f"System: {message['content']}\n\n"
+            elif message["role"] == "user":
+                prompt += f"User: {message['content']}\n\n"
+        
+        if use_json:
+            prompt += "\nPlease respond with valid JSON only."
+        
+        response = self.model.generate_content(prompt)
+        return response.text
+
+
+class AIService:
+    """Configurable AI service that supports multiple providers."""
+    
+    def __init__(self):
+        self.provider = self._create_provider()
+        self.enable_multimedia = settings.ENABLE_MULTIMEDIA
+    
+    def _create_provider(self) -> AIProvider:
+        """Create the appropriate AI provider based on configuration."""
+        provider_name = settings.AI_PROVIDER.lower()
+        model = settings.AI_MODEL
+        
+        if provider_name == "openai":
+            if not settings.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY is required for OpenAI provider")
+            return OpenAIProvider(
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL,
+                model=model
             )
+        
+        elif provider_name == "openrouter":
+            if not settings.OPENROUTER_API_KEY:
+                raise ValueError("OPENROUTER_API_KEY is required for OpenRouter provider")
+            return OpenRouterProvider(
+                api_key=settings.OPENROUTER_API_KEY,
+                model=model
+            )
+        
+        elif provider_name == "gemini":
+            if not settings.GEMINI_API_KEY:
+                raise ValueError("GEMINI_API_KEY is required for Gemini provider")
+            return GeminiProvider(
+                api_key=settings.GEMINI_API_KEY,
+                model=model
+            )
+        
+        else:
+            raise ValueError(f"Unsupported AI provider: {provider_name}")
+    
+    async def generate_knowledge_tree(self, topic: str) -> Dict[str, Any]:
+        """Generate a knowledge tree structure for a given topic."""
+        prompt = f"""
+        Create a comprehensive knowledge tree for the topic: "{topic}"
+        
+        The knowledge tree should be structured as follows:
+        - A main topic with 3-5 sections
+        - Each section should have 2-4 subsections
+        - Each section and subsection should have a clear title and description
+        - Focus on creating a logical learning progression
+        
+        Format the response as a JSON object with the following structure:
+        {{
+            "topic": "{topic}",
+            "sections": [
+                {{
+                    "title": "Section Title",
+                    "description": "Brief description of what this section covers",
+                    "subsections": [
+                        {{
+                            "title": "Subsection Title",
+                            "description": "Brief description of what this subsection covers"
+                        }}
+                    ]
+                }}
+            ]
+        }}
+        """
+        
+        try:
+            messages = [
+                {"role": "system", "content": "You are an expert educational content creator."},
+                {"role": "user", "content": prompt}
+            ]
             
-            content = response.choices[0].message.content
+            content = await self.provider.generate_completion(messages, use_json=True)
             if not content:
-                raise ValueError("OpenAI API returned empty content")
+                raise ValueError("AI provider returned empty content")
                 
             return json.loads(content)
             
@@ -66,65 +171,68 @@ class AIService:
     async def generate_lesson_content(self, subsection_title: str, subsection_description: str) -> str:
         """Generate lesson content for a subsection."""
         prompt = f"""
-        Generate clear, concise, and engaging educational content for the following subsection:
+        Create comprehensive lesson content for the following subsection:
         
         Title: {subsection_title}
         Description: {subsection_description}
         
-        The content should be comprehensive and cover all key concepts related to the subsection.
-        Use examples, analogies, and clear explanations to make the content accessible.
-        Format the content with appropriate headings, paragraphs, and bullet points.
+        The lesson should be:
+        - Well-structured with clear headings and subheadings
+        - Include practical examples where appropriate
+        - Be educational and engaging
+        - Use markdown formatting for better readability
+        - Be comprehensive but not overwhelming
+        
+        Focus on explaining concepts clearly and providing actionable information that helps students learn effectively.
         """
         
-        response = self.openai_client.chat.completions.create(
-            model="qwen/qwen-2.5-72b-instruct",
-            messages=[
-                {"role": "system", "content": "You are an educational content creator."},
+        try:
+            messages = [
+                {"role": "system", "content": "You are an expert educational content creator specializing in creating clear, comprehensive lessons."},
                 {"role": "user", "content": prompt}
             ]
-        )
-        
-        return response.choices[0].message.content
+            
+            content = await self.provider.generate_completion(messages)
+            if not content:
+                raise ValueError("AI provider returned empty content")
+                
+            return content
+            
+        except Exception as e:
+            print(f"Error generating lesson content: {str(e)}")
+            raise ValueError(f"Failed to generate lesson content: {str(e)}")
 
     async def generate_multimedia(self, title: str, content: str) -> List[str]:
-        """Generate multimedia content for a lesson."""
+        """Generate multimedia content suggestions."""
+        # Note: This is a placeholder implementation
+        # In a real implementation, you would integrate with image/video generation APIs
         if not self.enable_multimedia:
             return []
         
-        # Extract key concepts from the content
         prompt = f"""
-        Extract 1-2 key concepts from the following lesson content that would benefit from visual representation:
-        
-        Title: {title}
+        Based on the lesson title "{title}" and content, suggest 2-3 multimedia elements that would enhance learning.
         
         Content: {content}
         
         For each concept, provide a brief description of what the image should depict.
         """
         
-        response = self.openai_client.chat.completions.create(
-            model="qwen/qwen-2.5-72b-instruct",
-            messages=[
+        try:
+            messages = [
                 {"role": "system", "content": "You are an educational content creator."},
                 {"role": "user", "content": prompt}
             ]
-        )
-        
-        concepts = response.choices[0].message.content.split("\n\n")
-        
-        # Generate images for each concept
-        image_urls = []
-        for concept in concepts[:2]:  # Limit to 2 images
-            response = self.openai_client.images.generate(
-                model="dall-e-3",
-                prompt=f"Educational illustration for {title}: {concept}",
-                n=1,
-                size="1024x1024"
-            )
             
-            image_urls.append(response.data[0].url)
-        
-        return image_urls
+            response = await self.provider.generate_completion(messages)
+            concepts = response.split("\n\n")
+            
+            # Return placeholder URLs for now
+            # In production, you would generate actual multimedia content
+            return [f"https://placeholder.example.com/image_{i}.jpg" for i in range(min(2, len(concepts)))]
+            
+        except Exception as e:
+            print(f"Error generating multimedia: {str(e)}")
+            return []
 
     async def generate_questions(
         self, section_title: str, section_description: str, difficulty: str = "medium"
@@ -140,26 +248,34 @@ class AIService:
         The questions should cover key concepts from the section and be appropriate for the specified difficulty level.
         For each question, provide the question text and the correct answer.
         
-        Format the response as a JSON array with the following structure:
-        [
-            {{
-                "text": "Question text",
-                "difficulty": "{difficulty}",
-                "correct_answer": "Correct answer"
-            }}
-        ]
+        Format the response as a JSON object with a "questions" array:
+        {{
+            "questions": [
+                {{
+                    "text": "Question text",
+                    "difficulty": "{difficulty}",
+                    "correct_answer": "Correct answer"
+                }}
+            ]
+        }}
         """
         
-        response = self.openai_client.chat.completions.create(
-            model="qwen/qwen-2.5-72b-instruct",
-            messages=[
+        try:
+            messages = [
                 {"role": "system", "content": "You are an educational content creator."},
                 {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        
-        return json.loads(response.choices[0].message.content)
+            ]
+            
+            content = await self.provider.generate_completion(messages, use_json=True)
+            if not content:
+                raise ValueError("AI provider returned empty content")
+                
+            result = json.loads(content)
+            return result.get("questions", [])
+            
+        except Exception as e:
+            print(f"Error generating questions: {str(e)}")
+            raise ValueError(f"Failed to generate questions: {str(e)}")
 
     async def evaluate_answer(
         self, question: str, correct_answer: str, student_answer: str
@@ -177,20 +293,25 @@ class AIService:
         If the answer is correct, affirm and elaborate.
         If the answer is incorrect, guide the student toward the correct understanding without simply giving the answer.
         
-        Format the response as a JSON object with the following structure:
+        Format the response as a JSON object:
         {{
             "is_correct": true/false,
-            "feedback": "Feedback on the student's answer"
+            "feedback": "Constructive feedback message"
         }}
         """
         
-        response = self.openai_client.chat.completions.create(
-            model="qwen/qwen-2.5-72b-instruct",
-            messages=[
-                {"role": "system", "content": "You are an educational content evaluator."},
+        try:
+            messages = [
+                {"role": "system", "content": "You are an educational evaluator providing constructive feedback."},
                 {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        
-        return json.loads(response.choices[0].message.content)
+            ]
+            
+            content = await self.provider.generate_completion(messages, use_json=True)
+            if not content:
+                raise ValueError("AI provider returned empty content")
+                
+            return json.loads(content)
+            
+        except Exception as e:
+            print(f"Error evaluating answer: {str(e)}")
+            raise ValueError(f"Failed to evaluate answer: {str(e)}")

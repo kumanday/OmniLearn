@@ -26,8 +26,11 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=omnilearn
+      - AI_PROVIDER=${AI_PROVIDER:-openrouter}
+      - AI_MODEL=${AI_MODEL:-qwen/qwen-2.5-72b-instruct}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ENABLE_MULTIMEDIA=false
     depends_on:
       db:

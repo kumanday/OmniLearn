@@ -20,9 +20,9 @@ export const getKnowledgeTree = async (treeId: number) => {
   return response.data;
 };
 
-// Lesson API
+// Lesson API - FIXED: Now uses correct subsection endpoint
 export const getLesson = async (subsectionId: number) => {
-  const response = await api.get(`/lessons/${subsectionId}`);
+  const response = await api.get(`/lessons/subsection/${subsectionId}`);
   return response.data;
 };
 
@@ -32,8 +32,16 @@ export const getQuestions = async (sectionId: number) => {
   return response.data;
 };
 
+export const createQuestions = async (sectionId: number, sectionTitle: string) => {
+  const response = await api.post('/questions/', { 
+    section_id: sectionId, 
+    section_title: sectionTitle 
+  });
+  return response.data;
+};
+
 export const evaluateAnswer = async (questionId: number, answer: string) => {
-  const response = await api.post(`/questions/${questionId}/evaluate`, { answer });
+  const response = await api.post('/questions/evaluate', { question_id: questionId, answer });
   return response.data;
 };
 
@@ -45,11 +53,6 @@ export const registerUser = async (email: string, password: string, name: string
 
 export const loginUser = async (email: string, password: string) => {
   const response = await api.post('/users/login', { email, password });
-  return response.data;
-};
-
-export const getUserProgress = async () => {
-  const response = await api.get('/users/progress');
   return response.data;
 };
 

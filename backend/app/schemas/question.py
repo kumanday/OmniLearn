@@ -2,6 +2,12 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
 
+class HATEOASLink(BaseModel):
+    href: str
+    rel: str
+    method: str
+
+
 class QuestionBase(BaseModel):
     text: str
     difficulty: str  # "easy", "medium", "hard"
@@ -17,6 +23,7 @@ class QuestionCreate(BaseModel):
 class QuestionResponse(QuestionBase):
     id: int
     section_id: int
+    links: Optional[List[HATEOASLink]] = None
 
 
 class AnswerSubmit(BaseModel):

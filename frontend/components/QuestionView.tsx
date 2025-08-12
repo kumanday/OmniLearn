@@ -9,7 +9,7 @@ import { Button } from "./ui/button";
 import { Form, FormControl, FormField, FormItem } from "./ui/form";
 import { Textarea } from "./ui/textarea";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { getQuestions, evaluateAnswer } from "../lib/api";
+import { getQuestions, createQuestions, evaluateAnswer } from "../lib/api";
 
 interface QuestionViewProps {
   sectionId: number;
@@ -25,10 +25,18 @@ export default function QuestionView({ sectionId }: QuestionViewProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; feedback: string } | null>(null);
 
-  const { data: questions, isLoading, error } = useQuery({
+  const { data: questions, isLoading, error, refetch } = useQuery({
     queryKey: ["questions", sectionId],
     queryFn: () => getQuestions(sectionId),
     enabled: !!sectionId,
+  });
+
+  const createQuestionsMutation = useMutation({
+    mutationFn: ({ sectionId, sectionTitle }: { sectionId: number; sectionTitle: string }) => 
+      createQuestions(sectionId, sectionTitle),
+    onSuccess: () => {
+      refetch(); // Refetch questions after creating them
+    },
   });
 
   const form = useForm<AnswerFormValues>({
@@ -60,8 +68,14 @@ export default function QuestionView({ sectionId }: QuestionViewProps) {
 
   if (!questions || questions.length === 0) {
     return (
-      <div className="text-center py-4">
-        No practice questions available for this section.
+      <div className="text-center py-8">
+        <p className="mb-4">No practice questions available for this section.</p>
+        <Button 
+          onClick={() => createQuestionsMutation.mutate({ sectionId, sectionTitle: `Section ${sectionId}` })}
+          disabled={createQuestionsMutation.isPending}
+        >
+          {createQuestionsMutation.isPending ? "Generating Questions..." : "Generate Practice Questions"}
+        </Button>
       </div>
     );
   }
