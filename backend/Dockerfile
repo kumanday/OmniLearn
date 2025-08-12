@@ -5,7 +5,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml README.md ./
-RUN uv pip install -e .
+RUN uv pip install --system -e .
 
 COPY . .
 
