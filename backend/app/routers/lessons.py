@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Any, List
 
 from app.schemas.lesson import LessonCreate, LessonResponse
+from app.routers.auth import get_current_user
 from app.services.lesson import LessonService
 
 router = APIRouter()
@@ -11,6 +12,7 @@ router = APIRouter()
 async def create_lesson(
     data: LessonCreate,
     service: LessonService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Generate lesson content for a subsection.
@@ -25,6 +27,7 @@ async def create_lesson(
 async def get_lesson(
     lesson_id: int,
     service: LessonService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Get a lesson by ID.
@@ -39,6 +42,7 @@ async def get_lesson(
 async def get_lesson_by_subsection(
     subsection_id: int,
     service: LessonService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Get a lesson by subsection ID. Auto-generates if it doesn't exist.

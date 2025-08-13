@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from app.api.api import api_router
+from app.routers.api import api_router
 from app.core.config import settings
 from app.db.init_db import init_db
 

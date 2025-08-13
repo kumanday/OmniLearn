@@ -8,6 +8,7 @@ from app.schemas.question import (
     AnswerFeedback,
 )
 from app.services.question import QuestionService
+from app.routers.auth import get_current_user
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ router = APIRouter()
 async def create_questions(
     data: QuestionCreate,
     service: QuestionService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Generate practice questions for a section.
@@ -33,6 +35,7 @@ async def get_questions_by_section(
     section_id: int,
     difficulty: str = None,
     service: QuestionService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Get questions for a section, optionally filtered by difficulty.
@@ -45,6 +48,7 @@ async def get_questions_by_section(
 async def evaluate_answer(
     data: AnswerSubmit,
     service: QuestionService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Evaluate a student's answer to a question.
