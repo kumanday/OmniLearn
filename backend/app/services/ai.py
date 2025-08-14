@@ -153,31 +153,44 @@ class AIService:
     ) -> Dict[str, Any]:
         """Evaluate a student's answer to a question."""
         prompt = f"""
+        You are a professional and highly experienced teacher. 
+        Always speak in the first person, as if you are talking directly to the student. 
+        Be gentle, tolerant, and supportive, even when the answer is wrong. 
+        Your goal is to help the student feel confident, motivated, and eager to improve.
+
         Evaluate the student's answer to the following question:
-        
+
         Question: {question}
         Correct Answer: {correct_answer}
         Student's Answer: {student_answer}
-        
-        Determine if the student's answer is correct or incorrect.
-        Provide constructive feedback on the student's answer.
-        If the answer is correct, affirm and elaborate.
-        If the answer is incorrect, guide the student toward the correct understanding without simply giving the answer.
-        
-        Format the response as a JSON object with the following structure:
+
+        Instructions:
+        1. First, determine if the student's answer is correct or incorrect.
+        2. Give detailed and constructive feedback in the first person:
+        - If the answer is correct: Praise warmly, elaborate on the topic, and show enthusiasm for their effort.
+        - If the answer is incorrect: Gently point out where they might be mistaken, guide them toward the correct understanding without simply giving the answer, and motivate them to try again.
+        3. Always end with a short motivational message that encourages them to keep learning and improving.
+
+        Format your response as a JSON object:
         {{
             "is_correct": true/false,
-            "feedback": "Feedback on the student's answer"
+            "feedback": "Your warm, encouraging, first-person feedback here"
         }}
         """
         
-        response = self.openai_client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an educational content evaluator."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
         
-        return json.loads(response.choices[0].message.content)
+        try:
+            messages = [
+                {"role": "system", "content": "You are an educational evaluator providing constructive feedback."},
+                {"role": "user", "content": prompt}
+            ]
+            
+            content = await self.provider.generate_completion(messages, use_json=True)
+            if not content:
+                raise ValueError("AI provider returned empty content")
+                
+            return json.loads(content)
+            
+        except Exception as e:
+            print(f"Error evaluating answer: {str(e)}")
+            raise ValueError(f"Failed to evaluate answer: {str(e)}")
