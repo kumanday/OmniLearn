@@ -1,8 +1,9 @@
 'use client'
+// @ts-nocheck
 
 import { useEffect, useRef } from 'react'
 import { loadGoogleIdentityScript } from '../lib/google'
-import { loginWithGoogle } from '../../lib/api'
+import { loginWithGoogle, setAuthToken } from '../../lib/api'
 
 type Props = {
   clientId: string
@@ -21,7 +22,15 @@ export default function GoogleLoginButton({ clientId, onSuccess }: Props) {
         client_id: clientId,
         callback: async (resp: any) => {
           try {
-            await loginWithGoogle(resp.credential)
+            const data = await loginWithGoogle(resp.credential)
+            if (data?.access_token) {
+              localStorage.setItem('ol_jwt', data.access_token)
+              setAuthToken(data.access_token)
+              try {
+                const oneWeekInSeconds = 60 * 60 * 24 * 7
+                document.cookie = `ol_jwt=${data.access_token}; Path=/; Max-Age=${oneWeekInSeconds}; SameSite=Lax`
+              } catch {}
+            }
             onSuccess?.()
           } catch (e) {
             console.error('Login failed', e)

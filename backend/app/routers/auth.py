@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import create_access_token, decode_access_token, get_current_user
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    get_current_user,
+    verify_password,
+    get_password_hash,
+)
 from app.db.session import get_db
 from app.models.user import User, UserProgress
-from app.services.oauth.google import GoogleTokenVerifier
+from app.services.auth import AuthService
 
 
 class GoogleAuthPayload(BaseModel):
@@ -29,60 +35,61 @@ def set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
-@router.post("/google")
-async def google_login(payload: GoogleAuthPayload, response: Response, db: Session = Depends(get_db)):
-    verifier = GoogleTokenVerifier(settings.GOOGLE_CLIENT_ID)
-    google_user = await verifier.verify(payload.id_token)
-    if not google_user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google token")
+class RegisterPayload(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
 
-    # Upsert user
-    user = db.query(User).filter((User.email == google_user.email) | (User.google_sub == google_user.sub)).first()
-    if not user:
-        user = User(
-            email=google_user.email,
-            name=google_user.name or google_user.email.split("@")[0],
-            google_sub=google_user.sub,
-            picture_url=google_user.picture,
-            hashed_password="",
-        )
-        db.add(user)
-        db.flush()
-        progress = UserProgress(user_id=user.id, completed_subsections=[], scores={})
-        db.add(progress)
-    else:
-        user.google_sub = user.google_sub or google_user.sub
-        user.name = google_user.name or user.name
-        user.picture_url = google_user.picture or user.picture_url
 
-    db.commit()
-    db.refresh(user)
+class LoginPayload(BaseModel):
+    email: EmailStr
+    password: str
 
+
+def _jwt_response(user: User) -> dict:
+    """Build unified auth response with JWT and basic profile."""
     token = create_access_token(subject=str(user.id))
-    set_auth_cookie(response, token)
     return {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "picture_url": user.picture_url,
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "picture_url": user.picture_url,
+        },
     }
 
 
+@router.post("/google")
+async def google_login(payload: GoogleAuthPayload, response: Response, service: AuthService = Depends()):
+    auth = await service.login_with_google(payload.id_token)
+    set_auth_cookie(response, auth["access_token"])  # keep cookie for browser flows
+    return auth
+
+
+@router.post("/register")
+async def register(data: RegisterPayload, service: AuthService = Depends()):
+    """Register a new user with email/password. Fails on duplicate email."""
+    return service.register(email=data.email, name=data.name, password=data.password)
+
+
+@router.post("/login")
+async def login(data: LoginPayload, response: Response, service: AuthService = Depends()):
+    """Login with email/password and return a JWT."""
+    auth = service.login(email=data.email, password=data.password)
+    set_auth_cookie(response, auth["access_token"])  # optional: also set cookie
+    return auth
+
+
 @router.get("/me")
-async def get_me(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get(settings.COOKIE_NAME)
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    payload = decode_access_token(token)
-    user_id = int(payload.get("sub"))
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Return the current authenticated user profile using JWT from header or cookie."""
     return {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "picture_url": user.picture_url,
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "picture_url": current_user.picture_url,
     }
 
 

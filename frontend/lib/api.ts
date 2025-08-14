@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+// Default to localhost for dev; Docker image sets NEXT_PUBLIC_API_URL=/api/v1
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -48,12 +49,12 @@ export const evaluateAnswer = async (questionId: number, answer: string) => {
 
 // User API
 export const registerUser = async (email: string, password: string, name: string) => {
-  const response = await api.post('/users/register', { email, password, name });
+  const response = await api.post('/auth/register', { email, password, name });
   return response.data;
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const response = await api.post('/users/login', { email, password });
+  const response = await api.post('/auth/login', { email, password });
   return response.data;
 };
 

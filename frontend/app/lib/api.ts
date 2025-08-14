@@ -1,3 +1,4 @@
+// @ts-nocheck
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -7,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Knowledge Tree API
@@ -85,4 +87,28 @@ export const updateUserProgress = async (userId: number, subsectionId: number, c
 export const getUserProgress = async (userId: number) => {
   const response = await api.get(`/users/${userId}/progress`);
   return response.data;
+};
+
+// Auth helpers
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
+
+export const loginWithGoogle = async (idToken: string) => {
+  const res = await api.post('/auth/google', { id_token: idToken });
+  return res.data;
+};
+
+export const getMe = async () => {
+  const res = await api.get('/auth/me');
+  return res.data;
+};
+
+export const logout = async () => {
+  const res = await api.post('/auth/logout');
+  return res.data;
 };

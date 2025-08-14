@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Any, List
 
 from app.schemas.user import UserCreate, UserResponse, UserProgressUpdate, UserProgressResponse
-from app.routers.auth import get_current_user
+from app.core.security import get_current_user
 from app.services.user import UserService
 
 router = APIRouter()

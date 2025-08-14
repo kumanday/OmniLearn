@@ -105,15 +105,19 @@ class LessonService:
         
         return self._add_hateoas_links(response, db_subsection)
 
-    async def get_lesson_by_subsection(self, subsection_id: int) -> Optional[LessonResponse]:
-        """Get a lesson by subsection ID."""
+    async def get_lesson_by_subsection(self, subsection_id: int) -> LessonResponse:
+        """Get a lesson by subsection ID. Auto-generates if it doesn't exist."""
         db_lesson = self.db.query(Lesson).filter(Lesson.subsection_id == subsection_id).first()
         if not db_lesson:
-            return None
-        
+            # Auto-generate if missing
+            db_subsection = self.db.query(Subsection).filter(Subsection.id == subsection_id).first()
+            if not db_subsection:
+                raise ValueError(f"Subsection with ID {subsection_id} not found")
+            return await self.generate_lesson(subsection_id, db_subsection.title)
+
         # Get subsection for HATEOAS links
         db_subsection = self.db.query(Subsection).filter(Subsection.id == db_lesson.subsection_id).first()
-        
+
         response = LessonResponse(
             id=db_lesson.id,
             subsection_id=db_lesson.subsection_id,
@@ -122,5 +126,5 @@ class LessonService:
             content=db_lesson.content,
             multimedia_urls=db_lesson.multimedia_urls,
         )
-        
+
         return self._add_hateoas_links(response, db_subsection)

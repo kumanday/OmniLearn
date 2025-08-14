@@ -8,7 +8,7 @@ from app.schemas.question import (
     AnswerFeedback,
 )
 from app.services.question import QuestionService
-from app.routers.auth import get_current_user
+from app.core.security import get_current_user
 
 router = APIRouter()
 
