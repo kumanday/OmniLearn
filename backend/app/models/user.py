@@ -11,6 +11,8 @@ class User(Base, TimestampMixin):
     email = Column(String, unique=True, index=True)
     name = Column(String)
     hashed_password = Column(String)
+    google_sub = Column(String, unique=True, index=True, nullable=True)
+    picture_url = Column(String, nullable=True)
 
     progress = relationship("UserProgress", back_populates="user", uselist=False, cascade="all, delete-orphan")
 

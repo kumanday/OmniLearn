@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Any, List
 
 from app.schemas.user import UserCreate, UserResponse, UserProgressUpdate, UserProgressResponse
+from app.core.security import get_current_user
 from app.services.user import UserService
 
 router = APIRouter()
@@ -25,6 +26,7 @@ async def create_user(
 async def get_user(
     user_id: int,
     service: UserService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Get a user by ID.
@@ -40,6 +42,7 @@ async def update_user_progress(
     user_id: int,
     data: UserProgressUpdate,
     service: UserService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Update a user's progress.
@@ -54,6 +57,7 @@ async def update_user_progress(
 async def get_user_progress(
     user_id: int,
     service: UserService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Get a user's progress.

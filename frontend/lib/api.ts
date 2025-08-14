@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+// Default to localhost for dev; Docker image sets NEXT_PUBLIC_API_URL=/api/v1
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 const api = axios.create({
@@ -7,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Knowledge Tree API
@@ -47,12 +49,12 @@ export const evaluateAnswer = async (questionId: number, answer: string) => {
 
 // User API
 export const registerUser = async (email: string, password: string, name: string) => {
-  const response = await api.post('/users/register', { email, password, name });
+  const response = await api.post('/auth/register', { email, password, name });
   return response.data;
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const response = await api.post('/users/login', { email, password });
+  const response = await api.post('/auth/login', { email, password });
   return response.data;
 };
 
@@ -68,6 +70,22 @@ export const setAuthToken = (token: string | null) => {
   } else {
     delete api.defaults.headers.common['Authorization'];
   }
+};
+
+// Auth endpoints
+export const loginWithGoogle = async (idToken: string) => {
+  const res = await api.post('/auth/google', { id_token: idToken });
+  return res.data;
+};
+
+export const getMe = async () => {
+  const res = await api.get('/auth/me');
+  return res.data;
+};
+
+export const logout = async () => {
+  const res = await api.post('/auth/logout');
+  return res.data;
 };
 
 export default api;

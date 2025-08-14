@@ -44,7 +44,7 @@ OmniLearn is an AI-powered adaptive learning platform that creates personalized 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/omnilearn.git
+git clone https://github.com/kumanday/OmniLearn.git
 cd omnilearn
 ```
 

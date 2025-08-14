@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Any, List
 
 from app.schemas.lesson import LessonCreate, LessonResponse
+from app.core.security import get_current_user
 from app.services.lesson import LessonService
 
 router = APIRouter()
@@ -11,6 +12,7 @@ router = APIRouter()
 async def create_lesson(
     data: LessonCreate,
     service: LessonService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Generate lesson content for a subsection.
@@ -25,6 +27,7 @@ async def create_lesson(
 async def get_lesson(
     lesson_id: int,
     service: LessonService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Get a lesson by ID.
@@ -39,24 +42,14 @@ async def get_lesson(
 async def get_lesson_by_subsection(
     subsection_id: int,
     service: LessonService = Depends(),
+    current_user=Depends(get_current_user),
 ) -> Any:
     """
     Get a lesson by subsection ID. Auto-generates if it doesn't exist.
     """
-    lesson = await service.get_lesson_by_subsection(subsection_id)
-    if not lesson:
-        # Auto-generate lesson if it doesn't exist
-        try:
-            from app.models.knowledge_tree import Subsection
-            from app.db.session import get_db
-            
-            db = next(get_db())
-            subsection = db.query(Subsection).filter(Subsection.id == subsection_id).first()
-            if not subsection:
-                raise HTTPException(status_code=404, detail="Subsection not found")
-            
-            lesson = await service.generate_lesson(subsection_id, subsection.title)
-            return lesson
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to generate lesson: {str(e)}")
-    return lesson
+    try:
+        return await service.get_lesson_by_subsection(subsection_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get lesson: {str(e)}")

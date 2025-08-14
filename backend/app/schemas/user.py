@@ -5,6 +5,9 @@ from typing import List, Optional, Dict, Any
 class UserBase(BaseModel):
     email: EmailStr
     name: str
+    
+    class Config:
+        from_attributes = True
 
 
 class UserCreate(UserBase):

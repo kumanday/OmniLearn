@@ -1,3 +1,14 @@
+# Frontend
+
+## Variables de entorno
+
+Crear `.env.local` con:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=TU_CLIENT_ID
+```
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
